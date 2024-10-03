@@ -18,7 +18,15 @@ def update_repo(target_repo, file_path, content):
     source_branch = "main"
     target_branch = f"update-{file_path.replace('/', '-')}"
     sb = repo.get_branch(source_branch)
-    repo.create_git_ref(ref=f"refs/heads/{target_branch}", sha=sb.commit.sha)
+
+    # Check if the target branch already exists
+    try:
+        repo.get_branch(target_branch)
+        print(f"Branch {target_branch} already exists. Exiting.")
+        return None
+    except:
+        # Branch doesn't exist, so we can create it
+        repo.create_git_ref(ref=f"refs/heads/{target_branch}", sha=sb.commit.sha)
 
     # Get the file content
     file = repo.get_contents(file_path, ref=target_branch)
@@ -60,11 +68,16 @@ if __name__ == "__main__":
         print(f"::set-output name=result::{result}")
         print(f"The square of {input_number} is {result}")
 
-        update_repo(
+        pr_url = update_repo(
             target_repo,
-            "TEST.md",
+            "TEST.MD",
             f"This is a test update based on LLM query: {result}",
         )
+
+        if pr_url:
+            print(f"Pull request created: {pr_url}")
+        else:
+            print("No pull request created.")
 
         # You can now use qms_pat, openai_key, and target_repo as needed
         # print(f"QMS PAT: {qms_pat[:5]}...")  # Print first 5 characters for security
