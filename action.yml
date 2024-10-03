@@ -10,6 +10,15 @@ inputs:
   openai_key:
     description: 'OpenAI API Key'
     required: true
+  instruction:
+    description: 'Instruction to update the file'
+    required: true
+  issue_title:
+    description: 'Issue title'
+    required: true
+  issue_body:
+    description: 'Issue body'
+    required: true
 outputs:
   result:
     description: 'The squared number'
@@ -20,3 +29,6 @@ runs:
     - ${{ inputs.qms_pat }}
     - ${{ inputs.target_repo }}
     - ${{ inputs.openai_key }}
+    - ${{ inputs.instruction }}
+    - ${{ inputs.issue_title }}
+    - ${{ inputs.issue_body }}
