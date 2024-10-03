@@ -1,10 +1,15 @@
 name: 'Square Number Action'
 description: 'Squares a given number'
 inputs:
-  number:
-    description: 'Number to square'
+  qms_pat:
+    description: 'QMS Personal Access Token'
     required: true
-    default: '5'
+  target_repo:
+    description: 'QMS Target repository to update (owner/repo)'
+    required: true
+  openai_key:
+    description: 'OpenAI API Key'
+    required: true
 outputs:
   result:
     description: 'The squared number'
@@ -12,4 +17,6 @@ runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
-    - ${{ inputs.number }}
+    - ${{ inputs.qms_pat }}
+    - ${{ inputs.target_repo }}
+    - ${{ inputs.openai_key }}
