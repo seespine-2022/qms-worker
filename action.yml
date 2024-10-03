@@ -19,6 +19,9 @@ inputs:
   issue_body:
     description: 'Issue body'
     required: true
+  issue_url:
+    description: 'Issue url'
+    required: true
 outputs:
   result:
     description: 'The squared number'
@@ -32,3 +35,4 @@ runs:
     - ${{ inputs.instruction }}
     - ${{ inputs.issue_title }}
     - ${{ inputs.issue_body }}
+    - ${{ inputs.issue_url }}
