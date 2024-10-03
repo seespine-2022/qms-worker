@@ -43,7 +43,9 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
     return response["files"]
 
 
-def update_files(repo, target_branch, files, issue_title, issue_body, instruction):
+def update_files(
+    repo, source_branch, target_branch, files, issue_title, issue_body, instruction
+):
     client = OpenAI(
         api_key=os.environ["INPUT_OPENAI_KEY"],
     )
@@ -72,7 +74,40 @@ def update_files(repo, target_branch, files, issue_title, issue_body, instructio
         response_format={"type": "text"},
     )
     response_content = response.choices[0].message.content
-    print(f"Response: {response_content}")
+    messages.append({"role": "assistant", "content": response_content})
+    i = 0
+    for file in files:
+        if i != 0:
+            messages.pop()
+        messages.append(
+            {
+                "role": "user",
+                "content": f"Now update this file: {file} according to your own outline. Respond with just the full updated contents of the file, keeping original formatting.",
+            }
+        )
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            response_format={"type": "text"},
+        )
+        response_content = response.choices[0].message.content
+        repo.update_file(
+            file,
+            f"Update {file} based on LLM query",
+            response_content,
+            file.sha,
+            branch=target_branch,
+        )
+        i += 1
+
+    # Create a pull request
+    pr = repo.create_pull(
+        title=f"Update files based on LLM query",
+        body=f"This PR updates files based on an LLM query.",
+        head=target_branch,
+        base=source_branch,
+    )
+    return pr.html_url
 
 
 def update_qms(
@@ -105,36 +140,17 @@ def update_qms(
         # Branch doesn't exist, so we can create it
         repo.create_git_ref(ref=f"refs/heads/{target_branch}", sha=sb.commit.sha)
 
-    update_files(
-        repo, target_branch, files_to_update, issue_title, issue_body, instruction
-    )
-    quit()
-
-    # Get the file content
-    file = repo.get_contents(file_path, ref=target_branch)
-    file_content = base64.b64decode(file.content).decode("utf-8")
-
-    # Update the file content (this is a simple append, adjust as needed)
-    updated_content = file_content + "\n\n" + content
-
-    # Commit the change
-    repo.update_file(
-        file_path,
-        f"Update {file_path} based on LLM query",
-        updated_content,
-        file.sha,
-        branch=target_branch,
+    pr_url = update_files(
+        repo,
+        source_branch,
+        target_branch,
+        files_to_update,
+        issue_title,
+        issue_body,
+        instruction,
     )
 
-    # Create a pull request
-    pr = repo.create_pull(
-        title=f"Update {file_path} based on LLM query",
-        body=f"This PR updates {file_path} based on an LLM query.",
-        head=target_branch,
-        base=source_branch,
-    )
-
-    return pr.html_url
+    return pr_url
 
 
 if __name__ == "__main__":
