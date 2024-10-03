@@ -1,31 +1,23 @@
-# action.yaml
-name: 'Custom GitHub Action'
-description: 'A GitHub Action that takes an input and returns the square of the number'
-inputs:
-  num:
-    description: 'Enter a number'
-    required: true
-    default: "1"
-outputs:
-  num_squared:
-    description: 'Square of the input'
-    # need to specify the extra `value` field for `composite` actions
-    value: ${{ steps.get-square.outputs.num_squared }}
-runs:
-  using: 'composite'
-  steps:
-    - name: Install Python
-      uses: actions/setup-python@v4
+name: Square Number Action
+
+on:
+  workflow_dispatch:
+    inputs:
+      number:
+        description: 'Number to square'
+        required: true
+        default: '5'
+
+jobs:
+  square-number:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
       with:
-        python-version: '3.10'  
-    # - name: Install Dependencies
-    #   run: pip install -r requirements.txt
-    #   shell: bash
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Fetch the number's square
-      id: get-square
-      run: python get_num_square.py
+        python-version: '3.x'
+    - name: Run script
+      run: python script.py
       env:
-        INPUT_NUM: ${{ inputs.num }}
-      shell: bash
+        INPUT_NUM: ${{ github.event.inputs.number }}
