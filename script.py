@@ -162,17 +162,10 @@ if __name__ == "__main__":
         issue_body = os.environ["INPUT_ISSUE_BODY"]
         issue_url = os.environ["INPUT_ISSUE_URL"]
 
-        # For demonstration, we'll use the target_repo as the number to square
-        input_number = 5
-
-        result = square_number(input_number)
-        print(f"::set-output name=result::{result}")
-        print(f"The square of {input_number} is {result}")
-
         pr_url = update_qms(
             target_repo,
             "TEST.MD",
-            f"This is a test update based on LLM query: {result}",
+            f"This is a test update based on LLM query: 5",
             instruction,
             issue_title,
             issue_body,
@@ -181,12 +174,9 @@ if __name__ == "__main__":
 
         if pr_url:
             print(f"Pull request created: {pr_url}")
+            print(f"::set-output name=result::Created a pull request at {pr_url}")
         else:
-            print("No pull request created.")
-
-        # You can now use qms_pat, openai_key, and target_repo as needed
-        # print(f"QMS PAT: {qms_pat[:5]}...")  # Print first 5 characters for security
-        print(f"Target Repo: {target_repo}")
+            print(f"::set-output name=result::No pull request created.")
     except KeyError as e:
         print(f"Error: Missing environment variable {e}")
         sys.exit(1)
