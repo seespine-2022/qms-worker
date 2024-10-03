@@ -9,9 +9,25 @@ def square_number(n):
     return n * n
 
 
+def list_repo_files(repo):
+    contents = repo.get_contents("")
+    file_list = []
+    while contents:
+        file_content = contents.pop(0)
+        if file_content.type == "dir":
+            contents.extend(repo.get_contents(file_content.path))
+        else:
+            file_list.append(file_content.path)
+    return file_list
+
+
 def update_repo(target_repo, file_path, content):
     g = Github(os.environ["INPUT_QMS_PAT"])
     repo = g.get_repo(target_repo)
+    files = list_repo_files(repo)
+    print("Files in the repository:")
+    for file in files:
+        print(f"- {file}")
     print(f"Successfully connected to Github, and repo: {repo}")
 
     # Create a new branch
