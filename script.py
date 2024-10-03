@@ -33,7 +33,7 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
         messages=[
             {
                 "role": "user",
-                "content": f"You are a QMS expert. Given instruction, issue title and issue body, determine which files to update. Reply in JSOn format, with just a list of file paths, same as the input.\n\n Instruction: {instruction}\n\n Issue Title: {issue_title}\n\n Issue Body: {issue_body} \n\n Files: {files}",
+                "content": f"You are a QMS expert. Given instruction, issue title and issue body, determine which files to update. Reply in JSON format. The key is 'files' and the value is a list of file paths. \n\n Instruction: {instruction}\n\n Issue Title: {issue_title}\n\n Issue Body: {issue_body} \n\n Files: {files}",
             }
         ],
         response_format={"type": "json_object"},
@@ -41,6 +41,38 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
     response = json.loads(response.choices[0].message.content)
     print(f"Files to update: {response}")
     return response
+
+
+def update_files(repo, target_branch, files, issue_title, issue_body, instruction):
+    client = OpenAI(
+        api_key=os.environ["INPUT_OPENAI_KEY"],
+    )
+    messages = [
+        {
+            "role": "user",
+            "content": f"You are a QMS expert. Given instruction, issue title, issue body and the files to be updated, outline how you would update the files.",
+        },
+        {
+            "role": "user",
+            "content": f"Instruction: {instruction}\n\n Issue Title: {issue_title}\n\n Issue Body: {issue_body}",
+        },
+    ]
+    for file in files:
+        file = repo.get_contents(file, ref=target_branch)
+        file_content = base64.b64decode(file.content).decode("utf-8")
+        messages.append(
+            {
+                "role": "user",
+                "content": f"File: {file} \n File content:\n{file_content}",
+            }
+        )
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        response_format={"type": "text"},
+    )
+    response_content = response.choices[0].message.content
+    print(f"Response: {response_content}")
 
 
 def update_qms(
@@ -72,6 +104,11 @@ def update_qms(
     except:
         # Branch doesn't exist, so we can create it
         repo.create_git_ref(ref=f"refs/heads/{target_branch}", sha=sb.commit.sha)
+
+    update_files(
+        repo, target_branch, files_to_update, issue_title, issue_body, instruction
+    )
+    quit()
 
     # Get the file content
     file = repo.get_contents(file_path, ref=target_branch)
