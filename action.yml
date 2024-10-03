@@ -1,23 +1,15 @@
-name: Square Number Action
-
-on:
-  workflow_dispatch:
-    inputs:
-      number:
-        description: 'Number to square'
-        required: true
-        default: '5'
-
-jobs:
-  square-number:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-    - name: Run script
-      run: python script.py
-      env:
-        INPUT_NUM: ${{ github.event.inputs.number }}
+name: 'Square Number Action'
+description: 'Squares a given number'
+inputs:
+  number:
+    description: 'Number to square'
+    required: true
+    default: '5'
+outputs:
+  result:
+    description: 'The squared number'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.number }}
