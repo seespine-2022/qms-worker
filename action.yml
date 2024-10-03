@@ -1,5 +1,5 @@
-name: 'Square Number Action'
-description: 'Squares a given number'
+name: 'QMS worker'
+description: 'Handles QMS docs updates'
 inputs:
   qms_pat:
     description: 'QMS Personal Access Token'

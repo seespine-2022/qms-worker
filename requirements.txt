@@ -1,1 +1,2 @@
-numpy
+requests==2.26.0
+PyGithub==1.55
