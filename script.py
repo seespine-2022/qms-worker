@@ -59,13 +59,13 @@ def update_files(
             "content": f"Instruction: {instruction}\n\n Issue Title: {issue_title}\n\n Issue Body: {issue_body}",
         },
     ]
-    for file in files:
-        file = repo.get_contents(file, ref=target_branch)
-        file_content = base64.b64decode(file.content).decode("utf-8")
+    for file_path in files:
+        file_content = repo.get_contents(file_path, ref=target_branch)
+        decoded_content = base64.b64decode(file_content.content).decode("utf-8")
         messages.append(
             {
                 "role": "user",
-                "content": f"File: {file} \n File content:\n{file_content}",
+                "content": f"File: {file_path} \n File content:\n{decoded_content}",
             }
         )
     response = client.chat.completions.create(
@@ -76,13 +76,13 @@ def update_files(
     response_content = response.choices[0].message.content
     messages.append({"role": "assistant", "content": response_content})
     i = 0
-    for file in files:
+    for file_path in files:
         if i != 0:
             messages.pop()
         messages.append(
             {
                 "role": "user",
-                "content": f"Now update this file: {file} according to your own outline. Respond with just the full updated contents of the file, keeping original formatting.",
+                "content": f"Now update this file: {file_path} according to your own outline. Respond with just the full updated contents of the file, keeping original formatting.",
             }
         )
         response = client.chat.completions.create(
@@ -91,11 +91,12 @@ def update_files(
             response_format={"type": "text"},
         )
         response_content = response.choices[0].message.content
+        file_content = repo.get_contents(file_path, ref=target_branch)
         repo.update_file(
-            file,
-            f"Update {file} based on LLM query",
+            file_path,
+            f"Update {file_path} based on LLM query",
             response_content,
-            file.sha,
+            file_content.sha,
             branch=target_branch,
         )
         i += 1
