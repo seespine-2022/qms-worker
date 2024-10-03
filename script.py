@@ -40,7 +40,7 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
     )
     response = json.loads(response.choices[0].message.content)
     print(f"Files to update: {response}")
-    return response
+    return response["files"]
 
 
 def update_files(repo, target_branch, files, issue_title, issue_body, instruction):
