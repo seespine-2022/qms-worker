@@ -29,7 +29,7 @@ def update_repo(target_repo, file_path, content):
     for file in files:
         print(f"- {file}")
     print(f"Successfully connected to Github, and repo: {repo}")
-    print(f"Instruction: {os.environ["INPUT_INSTRUCTION"]}")
+    print(f"Instruction: {os.environ['INPUT_INSTRUCTION']}")
 
     # Create a new branch
     source_branch = "main"
