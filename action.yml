@@ -15,16 +15,25 @@ inputs:
     required: true
   issue_title:
     description: 'Issue title'
-    required: true
+    required: false
   issue_body:
     description: 'Issue body'
-    required: true
+    required: false
   issue_url:
     description: 'Issue url'
-    required: true
+    required: false
+  pr_title:
+    description: 'Pull request title'
+    required: false
+  pr_body:
+    description: 'Pull request body'
+    required: false
+  pr_url:
+    description: 'Pull request url'
+    required: false
 outputs:
   result:
-    description: 'The squared number'
+    description: 'The result of the QMS worker action'
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -36,3 +45,6 @@ runs:
     - ${{ inputs.issue_title }}
     - ${{ inputs.issue_body }}
     - ${{ inputs.issue_url }}
+    - ${{ inputs.pr_title }}
+    - ${{ inputs.pr_body }}
+    - ${{ inputs.pr_url }}
