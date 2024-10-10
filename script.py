@@ -5,6 +5,7 @@ from github import Github
 import sys
 from openai import OpenAI
 import json
+import re
 
 
 def square_number(n):
@@ -43,6 +44,29 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
     return response["files"]
 
 
+def summarize_pr(response_outline):
+    client = OpenAI(
+        api_key=os.environ["INPUT_OPENAI_KEY"],
+    )
+    messages = [
+        {
+            "role": "user",
+            "content": f"You are a QMS expert. Given the outline of the PR, summarize it and provide a title and body. Write it objectively, without mentioning LLM or AI. Respond in JSON format with keys 'title' and 'body'. Write the body in markdown format.",
+        },
+        {
+            "role": "user",
+            "content": f"Outline: {response_outline}",
+        },
+    ]
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+    response_summary = json.loads(response.choices[0].message.content)
+    return response_summary
+
+
 def update_files(
     repo, source_branch, target_branch, files, issue_title, issue_body, instruction
 ):
@@ -74,6 +98,8 @@ def update_files(
         response_format={"type": "text"},
     )
     response_outline = response.choices[0].message.content
+    response_summary = summarize_pr(response_outline)
+
     messages.append({"role": "assistant", "content": response_outline})
     i = 0
     for file_path in files:
@@ -103,13 +129,11 @@ def update_files(
 
     # Create a pull request
     pr = repo.create_pull(
-        title=f"Update files based on LLM query",
-        body=f"This PR updates files based on an LLM query.",
+        title=response_summary["title"],
+        body=response_summary["body"],
         head=target_branch,
         base=source_branch,
     )
-    print("PR URL: ", pr.html_url)
-    print("PR: ", pr)
     return pr.html_url
 
 
@@ -186,21 +210,31 @@ if __name__ == "__main__":
                 issue_body,
                 issue_url,
             )
-        if issue_title and pr_title:
+        elif issue_title and pr_title:
             # Issue and PR present
-            qms_pr_url = update_qms(
-                target_repo,
-                instruction,
-                issue_title,
-                issue_body,
-                issue_url,
+            qms_pr_url_match = re.search(
+                r"<qms_pr_creation>(.*?)</qms_pr_creation>", issue_body
             )
+            if qms_pr_url_match:
+                qms_pr_url = qms_pr_url_match.group(1)
+                # Extract the branch name from the PR URL
+                branch_name = qms_pr_url.split("/")[-2]
 
-        print("QMS PR URL: ", qms_pr_url)
+                # Update the existing PR
+                g = Github(os.environ["INPUT_QMS_PAT"])
+                repo = g.get_repo(target_repo)
+                pr = repo.get_pull(int(qms_pr_url.split("/")[-1]))
+
+                # Logic of updating the PR
+
+            else:
+                print("Error: Could not find QMS PR URL in the issue body")
+                qms_pr_url = None
+
         if qms_pr_url:
             print(f"Pull request created: {qms_pr_url}")
             print(
-                f"::set-output name=result::<qms_pr_creation>QMS pull request at {qms_pr_url}</qms_pr_creation>"
+                f"::set-output name=result::<qms_pr_creation>{qms_pr_url}</qms_pr_creation>"
             )
         else:
             print(f"::set-output name=result::No pull request created.")
