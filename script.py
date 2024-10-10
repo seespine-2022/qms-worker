@@ -73,8 +73,8 @@ def update_files(
         messages=messages,
         response_format={"type": "text"},
     )
-    response_content = response.choices[0].message.content
-    messages.append({"role": "assistant", "content": response_content})
+    response_outline = response.choices[0].message.content
+    messages.append({"role": "assistant", "content": response_outline})
     i = 0
     for file_path in files:
         if i != 0:
@@ -111,9 +111,7 @@ def update_files(
     return pr.html_url
 
 
-def update_qms(
-    target_repo, file_path, content, instruction, issue_title, issue_body, issue_url
-):
+def update_qms(target_repo, instruction, issue_title, issue_body, issue_url):
     g = Github(os.environ["INPUT_QMS_PAT"])
     repo = g.get_repo(target_repo)
     files = list_repo_files(repo)
@@ -158,23 +156,48 @@ if __name__ == "__main__":
     try:
         target_repo = os.environ["INPUT_TARGET_REPO"]
         instruction = os.environ["INPUT_INSTRUCTION"]
-        issue_title = os.environ["INPUT_ISSUE_TITLE"]
-        issue_body = os.environ["INPUT_ISSUE_BODY"]
-        issue_url = os.environ["INPUT_ISSUE_URL"]
 
-        pr_url = update_qms(
-            target_repo,
-            "TEST.MD",
-            f"This is a test update based on LLM query: 5",
-            instruction,
-            issue_title,
-            issue_body,
-            issue_url,
-        )
+        try:
+            issue_title = os.environ["INPUT_ISSUE_TITLE"]
+            issue_body = os.environ["INPUT_ISSUE_BODY"]
+            issue_url = os.environ["INPUT_ISSUE_URL"]
+        except KeyError:
+            issue_title = None
+            issue_body = None
+            issue_url = None
 
+        try:
+            pr_title = os.environ["INPUT_PR_TITLE"]
+            pr_body = os.environ["INPUT_PR_BODY"]
+            pr_url = os.environ["INPUT_PR_URL"]
+        except KeyError:
+            pr_title = None
+            pr_body = None
+            pr_url = None
+
+        if issue_title and not pr_title:
+            # Just an issue present, no PR yet
+            qms_pr_url = update_qms(
+                target_repo,
+                instruction,
+                issue_title,
+                issue_body,
+                issue_url,
+            )
+        if issue_title and pr_title:
+            # Issue and PR present
+            qms_pr_url = update_qms(
+                target_repo,
+                instruction,
+                issue_title,
+                issue_body,
+                issue_url,
+            )
         if pr_url:
-            print(f"Pull request created: {pr_url}")
-            print(f"::set-output name=result::Created a pull request at {pr_url}")
+            print(f"Pull request created: {qms_pr_url}")
+            print(
+                f"::set-output name=result::<qms_pr_creation>QMS pull request at {qms_pr_url}</qms_pr_creation>"
+            )
         else:
             print(f"::set-output name=result::No pull request created.")
     except KeyError as e:
