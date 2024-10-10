@@ -232,7 +232,7 @@ def create_change_control_record(
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Fill out the change request template based on the provided information.",
+            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS.",
         },
         {
             "role": "user",
