@@ -201,16 +201,19 @@ def find_change_request_template(files):
 
 
 def get_latest_cr_number(repo):
-    contents = repo.get_contents("change-requests/change-request-records")
-    cr_numbers = []
-    for content in contents:
-        if content.type == "file" and content.name.startswith("CR"):
-            try:
-                number = int(content.name.split("-")[0][2:])
-                cr_numbers.append(number)
-            except ValueError:
-                continue
-    return max(cr_numbers) if cr_numbers else 0
+    try:
+        contents = repo.get_contents("change-requests/change-request-records")
+        cr_numbers = []
+        for content in contents:
+            if content.type == "file" and content.name.startswith("CR"):
+                try:
+                    number = int(content.name.split("-")[0][2:])
+                    cr_numbers.append(number)
+                except ValueError:
+                    continue
+        return max(cr_numbers) if cr_numbers else 0
+    except:
+        return 0
 
 
 def create_change_control_record(
