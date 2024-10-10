@@ -120,7 +120,7 @@ def update_files(
         file_content = repo.get_contents(file_path, ref=target_branch)
         repo.update_file(
             file_path,
-            f"Update {file_path} based on LLM query",
+            f"Update {file_path}",
             response_content,
             file_content.sha,
             branch=target_branch,
