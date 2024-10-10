@@ -108,6 +108,8 @@ def update_files(
         head=target_branch,
         base=source_branch,
     )
+    print("PR URL: ", pr.html_url)
+    print("PR: ", pr)
     return pr.html_url
 
 
