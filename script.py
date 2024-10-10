@@ -8,8 +8,23 @@ import json
 import re
 
 
-def square_number(n):
-    return n * n
+def analyze_instruction(instruction, options):
+    client = OpenAI(
+        api_key=os.environ["INPUT_OPENAI_KEY"],
+    )
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": f"You are a QMS expert. One of our QA people just gave you an instruction. Analyze it and choose the most appropriate option from the following: {options}. Respond in JSON format with the key 'option' and the value as the option number.",
+            },
+            {"role": "user", "content": f"Instruction: \n{instruction}"},
+        ],
+        response_format={"type": "json_object"},
+    )
+    response = json.loads(response.choices[0].message.content)
+    return response["option"]
 
 
 def list_repo_files(repo):
@@ -182,6 +197,15 @@ if __name__ == "__main__":
     try:
         target_repo = os.environ["INPUT_TARGET_REPO"]
         instruction = os.environ["INPUT_INSTRUCTION"]
+
+        options = {
+            0: "No clear instruction",
+            1: "Create a change control record",
+            2: "Update QMS documentation",
+        }
+
+        option = analyze_instruction(instruction, options)
+        print(f"Option: {option}")
 
         try:
             issue_title = os.environ["INPUT_ISSUE_TITLE"]
