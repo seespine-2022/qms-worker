@@ -193,6 +193,97 @@ def update_qms(target_repo, instruction, issue_title, issue_body, issue_url):
     return pr_url
 
 
+def find_change_request_template(files):
+    for file in files:
+        if "change-request-template" in file.lower():
+            return file
+    return None
+
+
+def get_latest_cr_number(repo):
+    contents = repo.get_contents("change-requests/change-request-records")
+    cr_numbers = []
+    for content in contents:
+        if content.type == "file" and content.name.startswith("CR"):
+            try:
+                number = int(content.name.split("-")[0][2:])
+                cr_numbers.append(number)
+            except ValueError:
+                continue
+    return max(cr_numbers) if cr_numbers else 0
+
+
+def create_change_control_record(
+    repo, instruction, issue_title, issue_body, pr_title, pr_body
+):
+    client = OpenAI(api_key=os.environ["INPUT_OPENAI_KEY"])
+    files = list_repo_files(repo)
+
+    template_file = find_change_request_template(files)
+    if not template_file:
+        print("Error: change-request-template.md not found")
+        return None
+
+    template_content = repo.get_contents(template_file).decoded_content.decode("utf-8")
+
+    latest_cr_number = get_latest_cr_number(repo)
+    new_cr_number = latest_cr_number + 1
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a QMS expert. Fill out the change request template based on the provided information.",
+        },
+        {
+            "role": "user",
+            "content": f"Template:\n{template_content}\n\nIssue Title: {issue_title}\n\nIssue Body: {issue_body}\n\nPR Title: {pr_title}\n\nPR Body: {pr_body}\n\nOnly respond with the filled template in markdown format, no other text.",
+        },
+    ]
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=messages,
+        response_format={"type": "text"},
+    )
+
+    filled_template = response.choices[0].message.content
+
+    # Extract summary from the filled template (assuming it's the first line after the title)
+    summary = filled_template.split("\n")[1].strip()
+
+    # Create a valid filename
+    filename = f"CR{new_cr_number:03d}-{issue_title[:50]}"
+    filename = re.sub(r"[^\w\-_\. ]", "_", filename)
+    filename = filename.replace(" ", "_") + ".md"
+
+    return filename, filled_template, summary
+
+
+def create_pr_for_change_control(repo, filename, content, summary):
+    # Create a new branch
+    source_branch = "main"
+    target_branch = f"change-control-{filename.split('.')[0]}"
+    sb = repo.get_branch(source_branch)
+    repo.create_git_ref(ref=f"refs/heads/{target_branch}", sha=sb.commit.sha)
+
+    # Create the file in the new branch
+    repo.create_file(
+        f"change-request-records/{filename}",
+        f"Create Change Request {filename.split('-')[0]}",
+        content,
+        branch=target_branch,
+    )
+
+    # Create a pull request
+    pr = repo.create_pull(
+        title=f"Change Control: {summary}",
+        body=f"This PR adds opens new Change Control Record: {filename}",
+        head=target_branch,
+        base=source_branch,
+    )
+    return pr.html_url
+
+
 if __name__ == "__main__":
     try:
         target_repo = os.environ["INPUT_TARGET_REPO"]
@@ -201,7 +292,7 @@ if __name__ == "__main__":
         options = {
             0: "No clear instruction",
             1: "Create a change control record",
-            2: "Update QMS documentation",
+            2: "Update documentation",
         }
 
         option = analyze_instruction(instruction, options)
@@ -225,43 +316,71 @@ if __name__ == "__main__":
             pr_body = None
             pr_url = None
 
-        if issue_title and not pr_title:
-            # Just an issue present, no PR yet
-            qms_pr_url = update_qms(
-                target_repo,
-                instruction,
-                issue_title,
-                issue_body,
-                issue_url,
+        if option == 1:
+            g = Github(os.environ["INPUT_QMS_PAT"])
+            repo = g.get_repo(target_repo)
+
+            cr_result = create_change_control_record(
+                repo, instruction, issue_title, issue_body, pr_title, pr_body
             )
-        elif issue_title and pr_title:
-            # Issue and PR present
-            qms_pr_url_match = re.search(
-                r"<qms_pr_creation>(.*?)</qms_pr_creation>", issue_body
-            )
-            if qms_pr_url_match:
-                qms_pr_url = qms_pr_url_match.group(1)
-                # Extract the branch name from the PR URL
-                branch_name = qms_pr_url.split("/")[-2]
 
-                # Update the existing PR
-                g = Github(os.environ["INPUT_QMS_PAT"])
-                repo = g.get_repo(target_repo)
-                pr = repo.get_pull(int(qms_pr_url.split("/")[-1]))
+            if cr_result:
+                filename, content, summary = cr_result
+                pr_url = create_pr_for_change_control(repo, filename, content, summary)
 
-                # Logic of updating the PR
-
+                if pr_url:
+                    print(f"Change Control Record PR created: {pr_url}")
+                    print(
+                        f"::set-output name=result::<change_control_pr>{pr_url}</change_control_pr>"
+                    )
+                else:
+                    print("Failed to create Change Control Record PR")
+                    print(
+                        "::set-output name=result::No Change Control Record PR created."
+                    )
             else:
-                print("Error: Could not find QMS PR URL in the issue body")
-                qms_pr_url = None
+                print("Failed to create Change Control Record")
+                print("::set-output name=result::No Change Control Record created.")
 
-        if qms_pr_url:
-            print(f"Pull request created: {qms_pr_url}")
-            print(
-                f"::set-output name=result::<qms_pr_creation>{qms_pr_url}</qms_pr_creation>"
-            )
         else:
-            print(f"::set-output name=result::No pull request created.")
+
+            if issue_title and not pr_title:
+                # Just an issue present, no PR yet
+                qms_pr_url = update_qms(
+                    target_repo,
+                    instruction,
+                    issue_title,
+                    issue_body,
+                    issue_url,
+                )
+            elif issue_title and pr_title:
+                # Issue and PR present
+                qms_pr_url_match = re.search(
+                    r"<qms_pr_creation>(.*?)</qms_pr_creation>", issue_body
+                )
+                if qms_pr_url_match:
+                    qms_pr_url = qms_pr_url_match.group(1)
+                    # Extract the branch name from the PR URL
+                    branch_name = qms_pr_url.split("/")[-2]
+
+                    # Update the existing PR
+                    g = Github(os.environ["INPUT_QMS_PAT"])
+                    repo = g.get_repo(target_repo)
+                    pr = repo.get_pull(int(qms_pr_url.split("/")[-1]))
+
+                    # Logic of updating the PR
+
+                else:
+                    print("Error: Could not find QMS PR URL in the issue body")
+                    qms_pr_url = None
+
+            if qms_pr_url:
+                print(f"Pull request created: {qms_pr_url}")
+                print(
+                    f"::set-output name=result::<qms_pr_creation>{qms_pr_url}</qms_pr_creation>"
+                )
+            else:
+                print(f"::set-output name=result::No pull request created.")
     except KeyError as e:
         print(f"Error: Missing environment variable {e}")
         sys.exit(1)
