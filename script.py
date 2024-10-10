@@ -193,7 +193,7 @@ if __name__ == "__main__":
                 issue_body,
                 issue_url,
             )
-        if pr_url:
+        if qms_pr_url:
             print(f"Pull request created: {qms_pr_url}")
             print(
                 f"::set-output name=result::<qms_pr_creation>QMS pull request at {qms_pr_url}</qms_pr_creation>"
