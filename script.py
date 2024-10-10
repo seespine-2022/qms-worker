@@ -193,6 +193,8 @@ if __name__ == "__main__":
                 issue_body,
                 issue_url,
             )
+
+        print("QMS PR URL: ", qms_pr_url)
         if qms_pr_url:
             print(f"Pull request created: {qms_pr_url}")
             print(
