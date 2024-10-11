@@ -238,7 +238,7 @@ def create_change_control_record(
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD.",
+            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD. Always update the revision log with your initial entry.",
         },
         {
             "role": "user",
@@ -299,7 +299,7 @@ def update_change_control_record(
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Update the change request record based on the provided information. Focus on filling in TBD fields, but also update other fields if new information is available.",
+            "content": "You are a QMS expert. Update the change request record based on the provided information. Focus on filling in TBD fields, but also update other fields if new information is available. Always incrementally update the revisio log with your changes.",
         },
         {
             "role": "user",
