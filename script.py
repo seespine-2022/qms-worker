@@ -266,12 +266,12 @@ def create_change_control_record(
 
 
 def update_change_control_record(
-    repo, issue_title, issue_body, issue_url, pr_title, pr_body, pr_url
+    repo, cc_url, issue_title, issue_body, issue_url, pr_title, pr_body, pr_url
 ):
     client = get_openai_client()
 
-    # Get the PR
-    pr_number = int(pr_url.split("/")[-1])
+    # Get the PR for change control record
+    pr_number = int(cc_url.split("/")[-1])
     pr = repo.get_pull(pr_number)
 
     # Get the files changed in the PR
@@ -419,7 +419,14 @@ def main():
             if cc_pr_url_match:
                 cc_pr_url = cc_pr_url_match.group(1)
                 updated_pr_url = update_change_control_record(
-                    repo, cc_pr_url, issue_title, issue_body, pr_title, pr_body
+                    repo,
+                    cc_pr_url,
+                    issue_title,
+                    issue_body,
+                    issue_url,
+                    pr_title,
+                    pr_body,
+                    pr_url,
                 )
 
                 if updated_pr_url:
