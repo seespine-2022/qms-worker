@@ -6,6 +6,7 @@ import base64
 import requests
 from github import Github
 from openai import OpenAI
+import datetime
 
 # Constants
 MODEL = "gpt-4o"
@@ -235,10 +236,12 @@ def create_change_control_record(
     latest_cr_number = get_latest_cr_number(repo)
     new_cr_number = latest_cr_number + 1
 
+    today = datetime.now().strftime("%Y-%b-%d")
+
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD. Always update the revision log with your initial entry.",
+            "content": f"You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD. Always update the revision log with your initial entry. Today is {today}.",
         },
         {
             "role": "user",
@@ -296,10 +299,12 @@ def update_change_control_record(
         cr_file.filename, ref=pr.head.ref
     ).decoded_content.decode("utf-8")
 
+    today = datetime.now().strftime("%Y-%b-%d")
+
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Update the change request record based on the provided information. Focus on filling in TBD fields, but also update other fields if new information is available. Always incrementally update the revisio log with your changes.",
+            "content": f"You are a QMS expert. Update the change request record based on the provided information. Focus on filling in TBD fields, but also update other fields if new information is available. Always incrementally update the revisio log with your changes. Today is {today}.",
         },
         {
             "role": "user",
