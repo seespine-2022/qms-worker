@@ -1,30 +1,41 @@
 import os
-import requests
-import base64
-from github import Github
 import sys
-from openai import OpenAI
 import json
 import re
+import base64
+import requests
+from github import Github
+from openai import OpenAI
+
+# Constants
+MODEL = "gpt-4o"
 
 
+# OpenAI Client initialization
+def get_openai_client():
+    return OpenAI(api_key=os.environ["INPUT_OPENAI_KEY"])
+
+
+# GitHub Client initialization
+def get_github_client():
+    return Github(os.environ["INPUT_QMS_PAT"])
+
+
+# Utility functions
 def analyze_instruction(instruction, options):
-    client = OpenAI(
-        api_key=os.environ["INPUT_OPENAI_KEY"],
-    )
+    client = get_openai_client()
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=MODEL,
         messages=[
             {
                 "role": "user",
-                "content": f"You are a QMS expert. One of our QA people just gave you an instruction. Analyze it and choose the most appropriate option from the following: {options}. Respond in JSON format with the key 'option' and the value as the option number.",
+                "content": f"You are a QMS expert. Analyze this instruction and choose the most appropriate option from: {options}. Respond in JSON format with the key 'option' and the value as the option number.",
             },
             {"role": "user", "content": f"Instruction: \n{instruction}"},
         ],
         response_format={"type": "json_object"},
     )
-    response = json.loads(response.choices[0].message.content)
-    return response["option"]
+    return json.loads(response.choices[0].message.content)["option"]
 
 
 def list_repo_files(repo):
@@ -40,12 +51,9 @@ def list_repo_files(repo):
 
 
 def determine_files_to_update(files, instruction, issue_title, issue_body):
-    # Use OpenAI to determine the files to update
-    client = OpenAI(
-        api_key=os.environ["INPUT_OPENAI_KEY"],
-    )
+    client = get_openai_client()
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=MODEL,
         messages=[
             {
                 "role": "user",
@@ -60,9 +68,7 @@ def determine_files_to_update(files, instruction, issue_title, issue_body):
 
 
 def summarize_pr(response_outline):
-    client = OpenAI(
-        api_key=os.environ["INPUT_OPENAI_KEY"],
-    )
+    client = get_openai_client()
     messages = [
         {
             "role": "user",
@@ -74,20 +80,17 @@ def summarize_pr(response_outline):
         },
     ]
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=MODEL,
         messages=messages,
         response_format={"type": "json_object"},
     )
-    response_summary = json.loads(response.choices[0].message.content)
-    return response_summary
+    return json.loads(response.choices[0].message.content)
 
 
 def update_files(
     repo, source_branch, target_branch, files, issue_title, issue_body, instruction
 ):
-    client = OpenAI(
-        api_key=os.environ["INPUT_OPENAI_KEY"],
-    )
+    client = get_openai_client()
     messages = [
         {
             "role": "user",
@@ -108,7 +111,7 @@ def update_files(
             }
         )
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=MODEL,
         messages=messages,
         response_format={"type": "text"},
     )
@@ -127,7 +130,7 @@ def update_files(
             }
         )
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model=MODEL,
             messages=messages,
             response_format={"type": "text"},
         )
@@ -153,7 +156,7 @@ def update_files(
 
 
 def update_qms(target_repo, instruction, issue_title, issue_body, issue_url):
-    g = Github(os.environ["INPUT_QMS_PAT"])
+    g = get_github_client()
     repo = g.get_repo(target_repo)
     files = list_repo_files(repo)
     print("Files in the repository:")
@@ -193,11 +196,11 @@ def update_qms(target_repo, instruction, issue_title, issue_body, issue_url):
     return pr_url
 
 
+# Change Control functions
 def find_change_request_template(files):
-    for file in files:
-        if "change-request-template" in file.lower():
-            return file
-    return None
+    return next(
+        (file for file in files if "change-request-template" in file.lower()), None
+    )
 
 
 def get_latest_cr_number(repo):
@@ -217,9 +220,9 @@ def get_latest_cr_number(repo):
 
 
 def create_change_control_record(
-    repo, instruction, issue_title, issue_body, pr_title, pr_body
+    repo, instruction, issue_title, issue_body, issue_url, pr_title, pr_body, pr_url
 ):
-    client = OpenAI(api_key=os.environ["INPUT_OPENAI_KEY"])
+    client = get_openai_client()
     files = list_repo_files(repo)
 
     template_file = find_change_request_template(files)
@@ -235,16 +238,16 @@ def create_change_control_record(
     messages = [
         {
             "role": "system",
-            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS.",
+            "content": "You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD.",
         },
         {
             "role": "user",
-            "content": f"Template:\n{template_content}\n\nIssue Title: {issue_title}\n\nIssue Body: {issue_body}\n\nPR Title: {pr_title}\n\nPR Body: {pr_body}\n\nOnly respond with the filled template in markdown format, no other text.",
+            "content": f"Template:\n{template_content}\n\nIssue Title: {issue_title}\n\nIssue Body: {issue_body}\n\nIssue URL: {issue_url}\n\n PR Title: {pr_title}\n\nPR Body: {pr_body}\n\nPR URL: {pr_url}\n\nOnly respond with the filled template in markdown format, no other text.",
         },
     ]
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model=MODEL,
         messages=messages,
         response_format={"type": "text"},
     )
@@ -252,14 +255,80 @@ def create_change_control_record(
     filled_template = response.choices[0].message.content
 
     # Extract summary from the filled template (assuming it's the first line after the title)
-    summary = filled_template.split("\n")[1].strip()
+    summary = issue_title[:50]
 
     # Create a valid filename
-    filename = f"CR{new_cr_number:03d}-{issue_title[:50]}"
+    filename = f"CR{new_cr_number:03d}-{summary}"
     filename = re.sub(r"[^\w\-_\. ]", "_", filename)
     filename = filename.replace(" ", "_") + ".md"
 
     return filename, filled_template, summary
+
+
+def update_change_control_record(
+    repo, issue_title, issue_body, issue_url, pr_title, pr_body, pr_url
+):
+    client = get_openai_client()
+
+    # Get the PR
+    pr_number = int(pr_url.split("/")[-1])
+    pr = repo.get_pull(pr_number)
+
+    # Get the files changed in the PR
+    files_changed = pr.get_files()
+
+    # Find the change request record file
+    cr_file = next(
+        (
+            file
+            for file in files_changed
+            if file.filename.startswith("change-request-records/CR")
+        ),
+        None,
+    )
+
+    if not cr_file:
+        print("Error: No change request record found in the PR")
+        return None
+
+    # Get the content of the file
+    file_content = repo.get_contents(
+        cr_file.filename, ref=pr.head.ref
+    ).decoded_content.decode("utf-8")
+
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a QMS expert. Update the change request record based on the provided information. Focus on filling in TBD fields, but also update other fields if new information is available.",
+        },
+        {
+            "role": "user",
+            "content": f"Current change request record:\n{file_content}\n\nIssue Title: {issue_title}\n\nIssue Body: {issue_body}\n\nIssue URL: {issue_url}\n\nPR Title: {pr_title}\n\nPR Body: {pr_body}\n\nPR URL: {pr_url}\n\nRespond in json format with keys 'updated_content' and 'summary' with the updated record in markdown format, followed by a summary of entire issue+PR, also formatted in markdown to serve as the PR body..",
+        },
+    ]
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+
+    response_content = json.loads(response.choices[0].message.content)
+
+    # Update the file in the PR branch
+    repo.update_file(
+        cr_file.filename,
+        f"Update {cr_file.filename}",
+        response_content["updated_content"],
+        repo.get_contents(cr_file.filename, ref=pr.head.ref).sha,
+        branch=pr.head.ref,
+    )
+
+    # Update PR body
+    updated_pr_body = f"{response_content['summary']}"
+    pr.edit(body=updated_pr_body)
+
+    return pr_url
 
 
 def create_pr_for_change_control(repo, filename, content, summary):
@@ -287,7 +356,7 @@ def create_pr_for_change_control(repo, filename, content, summary):
     return pr.html_url
 
 
-if __name__ == "__main__":
+def main():
     try:
         target_repo = os.environ["INPUT_TARGET_REPO"]
         instruction = os.environ["INPUT_INSTRUCTION"]
@@ -295,36 +364,33 @@ if __name__ == "__main__":
         options = {
             0: "No clear instruction",
             1: "Create a change control record",
-            2: "Update documentation",
+            2: "Update change control record",
+            3: "Update documentation",
         }
 
         option = analyze_instruction(instruction, options)
         print(f"Option: {option}")
 
-        try:
-            issue_title = os.environ["INPUT_ISSUE_TITLE"]
-            issue_body = os.environ["INPUT_ISSUE_BODY"]
-            issue_url = os.environ["INPUT_ISSUE_URL"]
-        except KeyError:
-            issue_title = None
-            issue_body = None
-            issue_url = None
-
-        try:
-            pr_title = os.environ["INPUT_PR_TITLE"]
-            pr_body = os.environ["INPUT_PR_BODY"]
-            pr_url = os.environ["INPUT_PR_URL"]
-        except KeyError:
-            pr_title = None
-            pr_body = None
-            pr_url = None
+        issue_title = os.environ.get("INPUT_ISSUE_TITLE")
+        issue_body = os.environ.get("INPUT_ISSUE_BODY")
+        issue_url = os.environ.get("INPUT_ISSUE_URL")
+        pr_title = os.environ.get("INPUT_PR_TITLE")
+        pr_body = os.environ.get("INPUT_PR_BODY")
+        pr_url = os.environ.get("INPUT_PR_URL")
 
         if option == 1:
-            g = Github(os.environ["INPUT_QMS_PAT"])
+            g = get_github_client()
             repo = g.get_repo(target_repo)
 
             cr_result = create_change_control_record(
-                repo, instruction, issue_title, issue_body, pr_title, pr_body
+                repo,
+                instruction,
+                issue_title,
+                issue_body,
+                issue_url,
+                pr_title,
+                pr_body,
+                pr_url,
             )
 
             if cr_result:
@@ -344,9 +410,34 @@ if __name__ == "__main__":
             else:
                 print("Failed to create Change Control Record")
                 print("::set-output name=result::No Change Control Record created.")
+        elif option == 2:
+            g = get_github_client()
+            repo = g.get_repo(target_repo)
+            cc_pr_url_match = re.search(
+                r"<change_control_pr>(.*?)</change_control_pr>", issue_body
+            )
+            if cc_pr_url_match:
+                cc_pr_url = cc_pr_url_match.group(1)
+                updated_pr_url = update_change_control_record(
+                    repo, cc_pr_url, issue_title, issue_body, pr_title, pr_body
+                )
 
+                if updated_pr_url:
+                    print(f"Change Control Record updated: {updated_pr_url}")
+                    print(
+                        f"::set-output name=result::<change_control_pr_updated>{updated_pr_url}</change_control_pr_updated>"
+                    )
+                else:
+                    print("Failed to update Change Control Record")
+                    print("::set-output name=result::No Change Control Record updated.")
+            else:
+                print(
+                    "Error: Could not find Change Control Record PR URL in the issue body"
+                )
+                print(
+                    "::set-output name=result::No Change Control Record updated, because no PR URL was found."
+                )
         else:
-
             if issue_title and not pr_title:
                 # Just an issue present, no PR yet
                 qms_pr_url = update_qms(
@@ -367,7 +458,7 @@ if __name__ == "__main__":
                     branch_name = qms_pr_url.split("/")[-2]
 
                     # Update the existing PR
-                    g = Github(os.environ["INPUT_QMS_PAT"])
+                    g = get_github_client()
                     repo = g.get_repo(target_repo)
                     pr = repo.get_pull(int(qms_pr_url.split("/")[-1]))
 
@@ -390,3 +481,7 @@ if __name__ == "__main__":
     except ValueError:
         print("Error: Please provide a valid integer as input.")
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
