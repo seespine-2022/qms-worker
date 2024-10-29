@@ -250,10 +250,6 @@ def create_change_control_record(
         "today": today,
     }
 
-    print("Sections to fill:")
-    for section in sections:
-        print(f"- {section}")
-
     for section in sections:
         section_title = section.split("\n")[0].strip("## ")
 
@@ -291,6 +287,8 @@ def create_change_control_record(
         )
 
         filled_sections.append(response.choices[0].message.content)
+        print(f"Appending the filled section: {response.choices[0].message.content}")
+        print("--------------------------------")
 
     # Combine all sections
     filled_template = "\n\n".join(filled_sections)
