@@ -265,9 +265,8 @@ def create_change_control_record(
                     "Section 2: Determine the Major or Minor, insert the GitHub Issue URL and the GitHub PR URL. The Requestor is the Name in the Issue body. The Reviewer is the Management approval in the issue body, and the approver is the QA approval in the issue body."
                     "Section 3: In the Issue body, find whether it is a patch, minor or major change. Insert the reason/scope and source of change, also to be found in the issue body. Also include related QMS documents from the issue body. From the PR body you can find the affected software documentation components, such as SOUP, SDD etc."
                     "Section 4: Determine based on the issue an PR what type of change under 4.1 this is. From the issue body, determine how the items under 4.2 are affected."
-                )
-            }
-            
+                ),
+            },
             {
                 "role": "user",
                 "content": f"Section to fill: {section}\n\nContext:\n"
