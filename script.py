@@ -232,7 +232,7 @@ def create_change_control_record(
         return None
 
     template_content = repo.get_contents(template_file).decoded_content.decode("utf-8")
-    today = datetime.now().strftime("%Y-%b-%d")
+    today = datetime.datetime.now().strftime("%Y-%b-%d")
 
     # Split template into sections based on ## headers
     sections = re.split(r"(?m)^## ", template_content)
@@ -333,7 +333,7 @@ def update_change_control_record(
         cr_file.filename, ref=pr.head.ref
     ).decoded_content.decode("utf-8")
 
-    today = datetime.now().strftime("%Y-%b-%d")
+    today = datetime.datetime.now().strftime("%Y-%b-%d")
 
     messages = [
         {
