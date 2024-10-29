@@ -253,7 +253,7 @@ def create_change_control_record(
 
     for section in sections:
         i += 1
-        section_title = section.split("\n")[0].strip("## ")
+        section_title = section.split("\n")[0]
 
         messages = [
             {
@@ -263,15 +263,16 @@ def create_change_control_record(
             {
                 "role": "user",
                 "content": (
-                    "Section 1: Do not edit this section. Just return the section as it was provided to you. "
-                    "Section 2: Determine the Major or Minor, insert the GitHub Issue URL and the GitHub PR URL. The Requestor is the Name in the Issue body. The Reviewer is the Management approval in the issue body, and the approver is the QA approval in the issue body."
-                    "Section 3: In the Issue body, find whether it is a patch, minor or major change. Insert the reason/scope and source of change, also to be found in the issue body. Only include supporting QMS documentation if it is explicitly mentioned in the issue body. From the PR body you can find the affected software documentation components, such as SOUP, SDD etc."
-                    "Section 4: Determine based on the issue an PR what type of change under 4.1 this is. From the issue body, determine how the items under 4.2 are affected."
+                    f"You are now filling out section {section_title} of the change request template. The section encapsulates all elements with the same major number in the title, so 2.1 belongs to section 2.Please find specific instructions below. All the way at the end of this prompt, you will find the full template and context. \n"
+                    "Section 1: Do not edit this section. Just return the section as it was provided to you. \n"
+                    "Section 2: Determine the Major or Minor, insert the GitHub Issue URL and the GitHub PR URL. The Requestor is the Name in the Issue body. The Reviewer is the Management approval in the issue body, and the approver is the QA approval in the issue body.\n"
+                    "Section 3: In the Issue body, find whether it is a patch, minor or major change. Insert the reason/scope and source of change, also to be found in the issue body. Only include supporting QMS documentation if it is explicitly mentioned in the issue body. From the PR body you can find the affected software documentation components, such as SOUP, SDD etc.\n"
+                    "Section 4: Determine based on the issue an PR what type of change under 4.1 this is. From the issue body, determine how the items under 4.2 are affected.\n"
                 ),
             },
             {
                 "role": "user",
-                "content": f"Section to fill: {section}\n\nContext:\n"
+                "content": f"Full template:\n {template_content}\n\nContext:\n"
                 f"Issue Title: {issue_title}\n"
                 f"Issue Body: {issue_body}\n"
                 f"Issue URL: {issue_url}\n"
@@ -287,16 +288,10 @@ def create_change_control_record(
             messages=messages,
             response_format={"type": "text"},
         )
-        if i == 1:
-            filled_sections.append(section)
-            print(f"Appending the section: {section}")
-            print("--------------------------------")
-        else:
-            filled_sections.append(response.choices[0].message.content)
-            print(
-                f"Appending the filled section: {response.choices[0].message.content}"
-            )
-            print("--------------------------------")
+
+        filled_sections.append(response.choices[0].message.content)
+        print(f"Appending the filled section: {response.choices[0].message.content}")
+        print("--------------------------------")
 
     # Combine all sections
     filled_template = "\n\n".join(filled_sections)
