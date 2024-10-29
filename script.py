@@ -238,6 +238,7 @@ def create_change_control_record(
     sections = re.split(r"(?m)^## ", template_content)
     header = sections[0]  # Contains the # Change Request Form
     sections = ["## " + s for s in sections[1:]]  # Add back the ## to other sections
+    i = 0
 
     filled_sections = [header]
     base_context = {
@@ -251,6 +252,7 @@ def create_change_control_record(
     }
 
     for section in sections:
+        i += 1
         section_title = section.split("\n")[0].strip("## ")
 
         messages = [
@@ -285,10 +287,16 @@ def create_change_control_record(
             messages=messages,
             response_format={"type": "text"},
         )
-
-        filled_sections.append(response.choices[0].message.content)
-        print(f"Appending the filled section: {response.choices[0].message.content}")
-        print("--------------------------------")
+        if i == 1:
+            filled_sections.append(section)
+            print(f"Appending the section: {section}")
+            print("--------------------------------")
+        else:
+            filled_sections.append(response.choices[0].message.content)
+            print(
+                f"Appending the filled section: {response.choices[0].message.content}"
+            )
+            print("--------------------------------")
 
     # Combine all sections
     filled_template = "\n\n".join(filled_sections)
