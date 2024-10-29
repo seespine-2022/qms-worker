@@ -232,35 +232,70 @@ def create_change_control_record(
         return None
 
     template_content = repo.get_contents(template_file).decoded_content.decode("utf-8")
-
-    latest_cr_number = get_latest_cr_number(repo)
-    new_cr_number = latest_cr_number + 1
-
     today = datetime.now().strftime("%Y-%b-%d")
 
-    messages = [
-        {
-            "role": "system",
-            "content": f"You are a QMS expert. Fill out the change request template based on the provided information. Only fill out information you can in the context of QMS. When there is no information, fill in TBD. Always update the revision log with your initial entry. Today is {today}.",
-        },
-        {
-            "role": "user",
-            "content": f"Template:\n{template_content}\n\nIssue Title: {issue_title}\n\nIssue Body: {issue_body}\n\nIssue URL: {issue_url}\n\n PR Title: {pr_title}\n\nPR Body: {pr_body}\n\nPR URL: {pr_url}\n\nOnly respond with the filled template in markdown format, no other text.",
-        },
-    ]
+    # Split template into sections based on ## headers
+    sections = re.split(r"(?m)^## ", template_content)
+    header = sections[0]  # Contains the # Change Request Form
+    sections = ["## " + s for s in sections[1:]]  # Add back the ## to other sections
 
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=messages,
-        response_format={"type": "text"},
-    )
+    filled_sections = [header]
+    base_context = {
+        "issue_title": issue_title,
+        "issue_body": issue_body,
+        "issue_url": issue_url,
+        "pr_title": pr_title,
+        "pr_body": pr_body,
+        "pr_url": pr_url,
+        "today": today,
+    }
 
-    filled_template = response.choices[0].message.content
+    for section in sections:
+        section_title = section.split("\n")[0].strip("## ")
 
-    # Extract summary from the filled template (assuming it's the first line after the title)
+        messages = [
+            {
+                "role": "system",
+                "content": f"You are a QMS expert. Fill out this section of the change request template based on the provided information. Only fill out information you can confidently determine from the context. Today is {today}.",
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Section 1: Do not edit this section. "
+                    "Section 2: Determine the Major or Minor, insert the GitHub Issue URL and the GitHub PR URL. The Requestor is the Name in the Issue body. The Reviewer is the Management approval in the issue body, and the approver is the QA approval in the issue body."
+                    "Section 3: In the Issue body, find whether it is a patch, minor or major change. Insert the reason/scope and source of change, also to be found in the issue body. Also include related QMS documents from the issue body. From the PR body you can find the affected software documentation components, such as SOUP, SDD etc."
+                    "Section 4: Determine based on the issue an PR what type of change under 4.1 this is. From the issue body, determine how the items under 4.2 are affected."
+                )
+            }
+            
+            {
+                "role": "user",
+                "content": f"Section to fill: {section}\n\nContext:\n"
+                f"Issue Title: {issue_title}\n"
+                f"Issue Body: {issue_body}\n"
+                f"Issue URL: {issue_url}\n"
+                f"PR Title: {pr_title}\n"
+                f"PR Body: {pr_body}\n"
+                f"PR URL: {pr_url}\n\n"
+                f"Only respond with the filled section in markdown format, no other text.",
+            },
+        ]
+
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            response_format={"type": "text"},
+        )
+
+        filled_sections.append(response.choices[0].message.content)
+
+    # Combine all sections
+    filled_template = "\n\n".join(filled_sections)
+
+    # Rest of the function remains the same
+    latest_cr_number = get_latest_cr_number(repo)
+    new_cr_number = latest_cr_number + 1
     summary = issue_title[:50]
-
-    # Create a valid filename
     filename = f"CR{new_cr_number:03d}-{summary}"
     filename = re.sub(r"[^\w\-_\. ]", "_", filename)
     filename = filename.replace(" ", "_") + ".md"
