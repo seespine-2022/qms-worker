@@ -250,6 +250,10 @@ def create_change_control_record(
         "today": today,
     }
 
+    print("Sections to fill:")
+    for section in sections:
+        print(f"- {section}")
+
     for section in sections:
         section_title = section.split("\n")[0].strip("## ")
 
