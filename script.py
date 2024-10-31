@@ -267,7 +267,13 @@ def create_change_control_record(
                     "Section 1: Do not edit this section. Just return the section as it was provided to you. \n"
                     "Section 2: Determine the Major or Minor, insert the GitHub Issue URL and the GitHub PR URL. The Requestor is the Name in the Issue body. The Reviewer is the Management approval in the issue body, and the approver is the QA approval in the issue body.\n"
                     "Section 3: In the Issue body, find whether it is a patch, minor or major change. Insert the reason/scope and source of change, also to be found in the issue body. Only include supporting QMS documentation if it is explicitly mentioned in the issue body. From the PR body you can find the affected software documentation components, such as SOUP, SDD etc.\n"
-                    "Section 4: Determine based on the issue an PR what type of change under 4.1 this is. From the issue body, determine how the items under 4.2 are affected.\n"
+                    "Section 4: Determine based on the issue an PR what type of change under 4.1 this is, choose one. From the issue body, determine how the items under 4.2 are affected. \n"
+                    "Section 5: In the issue body, check out 2.3 to determine DTM impact. \n"
+                    "Section 6: In the issue body, check out 2.4 to determine Risk impact. For 6.3, determine whether our current Class A device might change to a different class. This is a high burden, so only do it if you are sure. \n"
+                    "Section 7: Check the issue and the PR body to determine if the change is significant in the context of QMS. It is a high burden, so only do it if you are sure. Fill out the rest to the best of your ability. It is all in the context of QMS/Software as a medical device. \n"
+                    "Section 8: Do not edit section 8.1 or 8.2, those are the options you can choose from. For the risk/impact matrix, describe the risk, rate it S (for severity) and P (for probability). Example: degraded performance of the device (S1/P1). THen describe how we control for it (we always do automatic testing, validation). In 8.4 see the PR body to see how acceptance test, unit tests, software tests were conducted. In 8.5 favor automatic tests, on an annual basis. Keep 8.6 empty. \n"
+                    "Section 9: Estimate if the feature is so different or new that it requires training. Assume smart staff that doesn't need training for clicking a button. Fill out 9.2. Answer to 9.3 is no, unless there is mention of a linked CAPA in the issue body. \n"
+                    "Section 10: Only list supporting documentation if it is explicitly mentioned in the issue body. \n"
                 ),
             },
             {
@@ -287,6 +293,7 @@ def create_change_control_record(
             model=MODEL,
             messages=messages,
             response_format={"type": "text"},
+            temperature=0.2,
         )
 
         filled_sections.append(response.choices[0].message.content)
