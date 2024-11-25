@@ -497,7 +497,7 @@ def propose_fmea_updates(fmea_content, issue_body):
         ],
         temperature=0.2,
     )
-    return json.loads(response.choices[0].message.content)
+    return response.choices[0].message.content
 
 
 def update_issue_section(issue_url, section_to_update, updates):
