@@ -407,6 +407,97 @@ def create_pr_for_change_control(repo, filename, content, summary):
     return pr.html_url
 
 
+def get_design_matrix_content():
+    g = get_github_client()
+    qms_repo = g.get_repo("seespine-2022/qms-docs")
+    file_path = "design/design-matrix/design-matrix.json"
+
+    try:
+        file_content = qms_repo.get_contents(file_path, ref="main")
+        decoded_content = base64.b64decode(file_content.content).decode("utf-8")
+        return decoded_content
+    except Exception as e:
+        print(f"Error: Unable to get contents of {file_path}. Exception: {e}")
+        sys.exit(1)
+        return None
+
+
+def get_fmea_content():
+    g = get_github_client()
+    qms_repo = g.get_repo("seespine-2022/qms-docs")
+    file_path = "risk/fmea/fmea.json"
+
+    try:
+        file_content = qms_repo.get_contents(file_path, ref="main")
+        decoded_content = base64.b64decode(file_content.content).decode("utf-8")
+        return decoded_content
+    except Exception as e:
+        print(f"Error: Unable to get contents of {file_path}. Exception: {e}")
+        sys.exit(1)
+        return None
+
+
+def propose_design_matrix_updates(design_matrix_content, issue_body):
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So check which option is applicable, when there should be updates, add them in markdown in the existing textblock. Return the block between the tags in such a way that it can be inserted back between the tags. Structure updates by ADD/UPDATE/DELETE a User Need in the DTM, and then specify how.",
+            },
+            {
+                "role": "user",
+                "content": f"Current DTM content:\n{design_matrix_content}\n\nIssue description:\n{issue_body}\n\n Analyze if any updates are needed to the DTM based on this issue.",
+            },
+        ],
+    )
+    return response.choices[0].message.content
+
+
+def propose_fmea_updates(fmea_content, issue_body):
+    client = get_openai_client()
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a QMS expert specialized in FMEA (Failure Mode and Effects Analysis). Review the current FMEA and propose updates based on the issue description.",
+            },
+            {
+                "role": "user",
+                "content": f"Current FMEA content:\n{fmea_content}\n\nIssue description:\n{issue_body}\n\nAnalyze if any updates are needed to the FMEA based on this issue. Consider new failure modes, risks, or controls that might be needed. Return a JSON object with 'needs_update' (boolean), 'proposed_changes' (list of changes), and 'rationale' (explanation).",
+            },
+        ],
+        response_format={"type": "json_object"},
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+def update_issue_section(repo, issue_url, section_to_update, updates):
+    issue = repo.get_issue(int(issue_url.split("/")[-1]))
+    issue_body = issue.body
+
+    section_start = f"<!--{section_to_update}-->"
+    section_end = f"<!--/{section_to_update}-->"
+
+    if section_start in issue_body and section_end in issue_body:
+        start_index = issue_body.index(section_start) + len(section_start)
+        end_index = issue_body.index(section_end)
+        new_issue_body = (
+            issue_body[:start_index]  # Everything up to and including start tag
+            + updates  # New content between tags
+            + issue_body[end_index:]  # Everything from end tag onwards
+        )
+
+        issue.edit(body=new_issue_body)
+        print(f"{section_to_update} section updated in the issue.")
+    else:
+        print(
+            f"Error: Could not find the {section_to_update} section in the issue body."
+        )
+
+
 def main():
     try:
         target_repo = os.environ["INPUT_TARGET_REPO"]
@@ -416,7 +507,7 @@ def main():
             0: "No clear instruction",
             1: "Create a change control record",
             2: "Update change control record",
-            3: "Update documentation",
+            3: "Propose Design Traceability Matrix and/or FMAE updates",
         }
 
         option = analyze_instruction(instruction, options)
@@ -462,6 +553,7 @@ def main():
                 print("Failed to create Change Control Record")
                 print("::set-output name=result::No Change Control Record created.")
         elif option == 2:
+
             g = get_github_client()
             repo = g.get_repo(target_repo)
             cc_pr_url_match = re.search(
@@ -495,6 +587,25 @@ def main():
                 print(
                     "::set-output name=result::No Change Control Record updated, because no PR URL was found."
                 )
+        elif option == 3:
+            print("Propose Design Traceability Matrix and/or FMAE updates")
+            design_matrix_content = get_design_matrix_content()
+            design_matrix_updates = propose_design_matrix_updates(
+                design_matrix_content, issue_body
+            )
+
+            update_issue_section(
+                repo, issue_url, "qms-section:dtm", design_matrix_updates
+            )
+
+            # fmea_content = get_fmea_content()
+            # if fmea_content:
+            #     print(f"FMEA content: {fmea_content}")
+            # else:
+            #     print("Error: Could not get FMEA content")
+            #     sys.exit(1)
+            # fmea_updates = propose_fmea_updates(fmea_content, issue_body)
+
         else:
             if issue_title and not pr_title:
                 # Just an issue present, no PR yet
