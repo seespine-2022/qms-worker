@@ -480,9 +480,20 @@ def propose_fmea_updates(fmea_content, issue_body):
 
 def update_issue_section(issue_url, section_to_update, updates):
     g = get_github_current_client()
-    repo_name = "/".join(issue_url.split("/")[-4:-2])
+
+    # Handle both API URLs and web URLs
+    if "api.github.com" in issue_url:
+        # API URL format: https://api.github.com/repos/owner/repo/issues/number
+        parts = issue_url.split("/repos/")[1].split("/")
+        repo_name = f"{parts[0]}/{parts[1]}"
+        issue_number = int(parts[3])
+    else:
+        # Web URL format: https://github.com/owner/repo/issues/number
+        repo_name = "/".join(issue_url.split("/")[-4:-2])
+        issue_number = int(issue_url.split("/")[-1])
+
     repo = g.get_repo(repo_name)
-    issue = repo.get_issue(int(issue_url.split("/")[-1]))
+    issue = repo.get_issue(issue_number)
     issue_body = issue.body
 
     section_start = f"<!--{section_to_update}-->"
