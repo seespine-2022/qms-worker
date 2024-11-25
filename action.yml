@@ -37,6 +37,8 @@ outputs:
 runs:
   using: 'docker'
   image: 'Dockerfile'
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
   args:
     - ${{ inputs.qms_pat }}
     - ${{ inputs.target_repo }}
