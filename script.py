@@ -23,7 +23,7 @@ def get_github_qms_client():
 
 
 def get_github_current_client():
-    return Github(os.environ("GITHUB_TOKEN"))
+    return Github(os.environ("INPUT_GITHUB_TOKEN"))
 
 
 # Utility functions
