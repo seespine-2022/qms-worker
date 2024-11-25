@@ -448,7 +448,7 @@ def propose_design_matrix_updates(design_matrix_content, issue_body):
         messages=[
             {
                 "role": "system",
-                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So check which option is applicable, when there should be updates, add them in markdown in the existing textblock. Return the block between the tags in such a way that it can be inserted back between the tags. Structure updates by ADD/UPDATE/DELETE a User Need in the DTM, and then specify how.",
+                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So check which option is applicable, when there should be updates, add them in markdown in the existing textblock. Return the block between the tags in such a way that it can be inserted back between the tags. Structure updates by ADD/UPDATE/DELETE a User Need in the DTM, and then specify how. Omit ```markdown tags.",
             },
             {
                 "role": "user",
@@ -479,47 +479,55 @@ def propose_fmea_updates(fmea_content, issue_body):
 
 
 def update_issue_section(issue_url, section_to_update, updates):
-    g = get_github_current_client()
-    print("GitHub client created: ", g)
-    print("Issue URL: ", issue_url)
-    # Handle both API URLs and web URLs
-    if "api.github.com" in issue_url:
-        # API URL format: https://api.github.com/repos/owner/repo/issues/number
-        parts = issue_url.split("/repos/")[1].split("/")
-        repo_name = f"{parts[0]}/{parts[1]}"
-        issue_number = int(parts[3])
-    else:
-        # Web URL format: https://github.com/owner/repo/issues/number
-        repo_name = "/".join(issue_url.split("/")[-4:-2])
-        issue_number = int(issue_url.split("/")[-1])
+    # Get the token from the workflow's environment
+    token = os.getenv("GITHUB_TOKEN")
+    print(f"Token available: {'Yes' if token else 'No'}")
 
-    print("Repo name: ", repo_name)
-    print("Issue number: ", issue_number)
+    # Create a direct API connection instead of using PyGithub
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
 
-    repo = g.get_repo(repo_name)
-    print("Repo: ", repo)
-    issue = repo.get_issue(issue_number)
-    print("Issue: ", issue)
-    issue_body = issue.body
+    try:
+        # Parse the issue URL to get repo and issue info
+        parts = issue_url.split("/")
+        owner = parts[3]
+        repo = parts[4]
+        issue_number = int(parts[-1])
 
-    section_start = f"<!--{section_to_update}-->"
-    section_end = f"<!--/{section_to_update}-->"
+        print(f"Accessing: owner={owner}, repo={repo}, issue={issue_number}")
 
-    if section_start in issue_body and section_end in issue_body:
-        start_index = issue_body.index(section_start) + len(section_start)
-        end_index = issue_body.index(section_end)
-        new_issue_body = (
-            issue_body[:start_index]  # Everything up to and including start tag
-            + updates  # New content between tags
-            + issue_body[end_index:]  # Everything from end tag onwards
-        )
+        # Get the issue using REST API
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}"
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        issue_data = response.json()
 
-        issue.edit(body=new_issue_body)
-        print(f"{section_to_update} section updated in the issue.")
-    else:
-        print(
-            f"Error: Could not find the {section_to_update} section in the issue body."
-        )
+        issue_body = issue_data["body"]
+        section_start = f"<!--{section_to_update}-->"
+        section_end = f"<!--/{section_to_update}-->"
+
+        if section_start in issue_body and section_end in issue_body:
+            start_index = issue_body.index(section_start) + len(section_start)
+            end_index = issue_body.index(section_end)
+            new_issue_body = issue_body[:start_index] + updates + issue_body[end_index:]
+
+            # Update the issue using REST API
+            update_response = requests.patch(
+                api_url, headers=headers, json={"body": new_issue_body}
+            )
+            update_response.raise_for_status()
+            print(f"{section_to_update} section updated in the issue.")
+        else:
+            print(
+                f"Error: Could not find the {section_to_update} section in the issue body."
+            )
+
+    except Exception as e:
+        print(f"Error in update_issue_section: {str(e)}")
+        print(f"Full error details: {repr(e)}")
+        raise
 
 
 def main():
