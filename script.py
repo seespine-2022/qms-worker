@@ -448,7 +448,7 @@ def propose_design_matrix_updates(design_matrix_content, issue_body):
         messages=[
             {
                 "role": "system",
-                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So check which option is applicable, when there should be updates, add them in the existing textblock. Return the block between the tags in such a way that it can be inserted back between the tags. For each ADD/UPDATE/DELETE, first say 'ADD/DELETE/UPDATE User Need x' and then add a formatted json object with the new/updated User Need, with ```json tags.",
+                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So keep the original text which gives you the options Yes/No/Other to the question whether to update. Check which option is applicable, when there should be updates, add them in the existing textblock in the correct place. Return the block between the tags in such a way that it can be inserted back between the tags. For each ADD/UPDATE/DELETE, first say 'ADD/DELETE/UPDATE User Need x' and then add a formatted json object with the new/updated User Need, with ```json tags. Prepend and append the tags with a line break.",
             },
             {
                 "role": "user",
