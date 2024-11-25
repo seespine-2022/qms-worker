@@ -448,13 +448,23 @@ def propose_design_matrix_updates(design_matrix_content, issue_body):
         messages=[
             {
                 "role": "system",
-                "content": "You are a QMS expert specialized in Design Traceability Matrix analysis. Review the current DTM and propose updates based if necessary on the issue description. In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. So keep the original text which gives you the options Yes/No/Other to the question whether to update. Check which option is applicable, when there should be updates, add them in the existing textblock in the correct place. Return the block between the tags in such a way that it can be inserted back between the tags. For each ADD/UPDATE/DELETE, first say 'ADD/DELETE/UPDATE User Need x' and then add a formatted json object with the new/updated User Need, with ```json tags. Prepend and append the tags with a line break.",
+                "content": (
+                    "You are a QMS expert specialized in Design Traceability Matrix analysis. "
+                    "Review the current DTM and propose updates if necessary based on the issue description. "
+                    "In the issue, the result you produce has to go between the <!--qms-section:dtm--> and <!--/qms-section:dtm--> tags. "
+                    "So keep the original text which gives you the options Yes/No/Other to the question whether to update. "
+                    "Check which option is applicable, when there should be updates, add them in the existing textblock in the correct place. "
+                    "Return the block between the tags in such a way that it can be inserted back between the tags. "
+                    "For each ADD/UPDATE/DELETE, first say 'ADD/DELETE/UPDATE User Need x' and then add a formatted json object with the new/updated User Need, with ```json tags. "
+                    "Prepend and append the tags with a line break."
+                ),
             },
             {
                 "role": "user",
                 "content": f"Current DTM content:\n{design_matrix_content}\n\nIssue description:\n{issue_body}\n\n Analyze if any updates are needed to the DTM based on this issue.",
             },
         ],
+        temperature=0.2,
     )
     return response.choices[0].message.content
 
@@ -466,22 +476,30 @@ def propose_fmea_updates(fmea_content, issue_body):
         messages=[
             {
                 "role": "system",
-                "content": "You are a QMS expert specialized in FMEA (Failure Mode and Effects Analysis). Review the current FMEA and propose updates based on the issue description.",
+                "content": (
+                    "You are a QMS expert specialized in FMEA (Failure Mode and Effects Analysis). "
+                    "Review the current FMEA and propose updates based on the issue description."
+                    "Consider new failure modes, risks, or controls that might be needed."
+                    "In the issue, the result you produce has to go between the <!--qms-section:fmea--> and <!--/qms-section:fmea--> tags. "
+                    "So keep the original text which gives you the options Yes/No/Other to the question whether to update. "
+                    "Check which option is applicable, when there should be updates, add them in the existing textblock in the correct place. "
+                    "Return the block between the tags in such a way that it can be inserted back between the tags. "
+                    "For each ADD/UPDATE/DELETE, first say 'ADD/DELETE/UPDATE Failure mode x' and then add a formatted json object with the new/updated Failure mode, with ```json tags. "
+                    "Prepend and append the tags with a line break."
+                ),
             },
             {
                 "role": "user",
-                "content": f"Current FMEA content:\n{fmea_content}\n\nIssue description:\n{issue_body}\n\nAnalyze if any updates are needed to the FMEA based on this issue. Consider new failure modes, risks, or controls that might be needed. Return a JSON object with 'needs_update' (boolean), 'proposed_changes' (list of changes), and 'rationale' (explanation).",
+                "content": f"Current FMEA content:\n{fmea_content}\n\nIssue description:\n{issue_body}\n\nAnalyze if any updates are needed to the FMEA based on this issue.  ",
             },
         ],
-        response_format={"type": "json_object"},
+        temperature=0.2,
     )
     return json.loads(response.choices[0].message.content)
 
 
 def update_issue_section(issue_url, section_to_update, updates):
     g = get_github_current_client()
-    print("GitHub client created: ", g)
-    print("Issue URL: ", issue_url)
     # Handle both API URLs and web URLs
     if "api.github.com" in issue_url:
         # API URL format: https://api.github.com/repos/owner/repo/issues/number
@@ -493,13 +511,8 @@ def update_issue_section(issue_url, section_to_update, updates):
         repo_name = "/".join(issue_url.split("/")[-4:-2])
         issue_number = int(issue_url.split("/")[-1])
 
-    print("Repo name: ", repo_name)
-    print("Issue number: ", issue_number)
-
     repo = g.get_repo(repo_name)
-    print("Repo: ", repo)
     issue = repo.get_issue(issue_number)
-    print("Issue: ", issue)
     issue_body = issue.body
 
     section_start = f"<!--{section_to_update}-->"
@@ -622,16 +635,15 @@ def main():
             update_issue_section(issue_url, "qms-section:dtm", design_matrix_updates)
 
             print("Design matrix updates added to the issue")
-            print(f"::set-output name=result::Design matrix updates added to the issue")
 
-            # fmea_content = get_fmea_content()
-            # if fmea_content:
-            #     print(f"FMEA content: {fmea_content}")
-            # else:
-            #     print("Error: Could not get FMEA content")
-            #     sys.exit(1)
-            # fmea_updates = propose_fmea_updates(fmea_content, issue_body)
+            fmea_content = get_fmea_content()
+            fmea_updates = propose_fmea_updates(fmea_content, issue_body)
+            print("FMEA updates: ", fmea_updates)
 
+            update_issue_section(issue_url, "qms-section:fmea", fmea_updates)
+
+            print("FMEA updates added to the issue")
+            print(f"::set-output name=result::DTM and FMEA updates added to the issue")
         else:
             if issue_title and not pr_title:
                 # Just an issue present, no PR yet
