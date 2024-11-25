@@ -4,6 +4,9 @@ inputs:
   qms_pat:
     description: 'QMS Personal Access Token'
     required: true
+  github_token:
+    description: 'GitHub token'
+    required: true
   target_repo:
     description: 'QMS Target repository to update (owner/repo)'
     required: true
