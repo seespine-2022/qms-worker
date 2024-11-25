@@ -497,6 +497,7 @@ def update_issue_section(issue_url, section_to_update, updates):
     print("Issue number: ", issue_number)
 
     token = os.getenv("GITHUB_TOKEN")
+    print("Token: ", token)
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json",
