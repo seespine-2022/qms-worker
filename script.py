@@ -621,6 +621,9 @@ def main():
 
             update_issue_section(issue_url, "qms-section:dtm", design_matrix_updates)
 
+            print("Design matrix updates added to the issue")
+            print(f"::set-output name=result::Design matrix updates added to the issue")
+
             # fmea_content = get_fmea_content()
             # if fmea_content:
             #     print(f"FMEA content: {fmea_content}")
