@@ -23,7 +23,7 @@ def get_github_qms_client():
 
 
 def get_github_current_client():
-    return Github(os.getenv("GITHUB_TOKEN"))
+    return Github(os.environ("GITHUB_TOKEN"))
 
 
 # Utility functions
@@ -497,7 +497,9 @@ def update_issue_section(issue_url, section_to_update, updates):
     print("Issue number: ", issue_number)
 
     repo = g.get_repo(repo_name)
+    print("Repo: ", repo)
     issue = repo.get_issue(issue_number)
+    print("Issue: ", issue)
     issue_body = issue.body
 
     section_start = f"<!--{section_to_update}-->"
