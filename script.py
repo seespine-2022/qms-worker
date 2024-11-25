@@ -496,26 +496,11 @@ def update_issue_section(issue_url, section_to_update, updates):
     print("Repo name: ", repo_name)
     print("Issue number: ", issue_number)
 
-    token = os.getenv("GITHUB_TOKEN")
-    print("Token: ", token)
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
-
-    # Get the issue using REST API
-    api_url = f"https://api.github.com/repos/{repo_name}/issues/{issue_number}"
-    response = requests.get(api_url, headers=headers)
-    response.raise_for_status()
-    issue_data = response.json()
-    print("Issue data: ", issue_data)
-    quit()
-
-    # repo = g.get_repo(repo_name)
-    # print("Repo: ", repo)
-    # issue = repo.get_issue(issue_number)
-    # print("Issue: ", issue)
-    # issue_body = issue.body
+    repo = g.get_repo(repo_name)
+    print("Repo: ", repo)
+    issue = repo.get_issue(issue_number)
+    print("Issue: ", issue)
+    issue_body = issue.body
 
     section_start = f"<!--{section_to_update}-->"
     section_end = f"<!--/{section_to_update}-->"
