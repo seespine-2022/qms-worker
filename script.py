@@ -18,8 +18,12 @@ def get_openai_client():
 
 
 # GitHub Client initialization
-def get_github_client():
+def get_github_qms_client():
     return Github(os.environ["INPUT_QMS_PAT"])
+
+
+def get_github_current_client():
+    return Github(os.getenv("GITHUB_TOKEN"))
 
 
 # Utility functions
@@ -157,7 +161,7 @@ def update_files(
 
 
 def update_qms(target_repo, instruction, issue_title, issue_body, issue_url):
-    g = get_github_client()
+    g = get_github_qms_client()
     repo = g.get_repo(target_repo)
     files = list_repo_files(repo)
     print("Files in the repository:")
@@ -408,7 +412,7 @@ def create_pr_for_change_control(repo, filename, content, summary):
 
 
 def get_design_matrix_content():
-    g = get_github_client()
+    g = get_github_qms_client()
     qms_repo = g.get_repo("seespine-2022/qms-docs")
     file_path = "design/design-matrix/design-matrix.json"
 
@@ -423,7 +427,7 @@ def get_design_matrix_content():
 
 
 def get_fmea_content():
-    g = get_github_client()
+    g = get_github_qms_client()
     qms_repo = g.get_repo("seespine-2022/qms-docs")
     file_path = "risk/fmea/fmea.json"
 
@@ -474,7 +478,10 @@ def propose_fmea_updates(fmea_content, issue_body):
     return json.loads(response.choices[0].message.content)
 
 
-def update_issue_section(repo, issue_url, section_to_update, updates):
+def update_issue_section(issue_url, section_to_update, updates):
+    g = get_github_current_client()
+    repo_name = "/".join(issue_url.split("/")[-4:-2])
+    repo = g.get_repo(repo_name)
     issue = repo.get_issue(int(issue_url.split("/")[-1]))
     issue_body = issue.body
 
@@ -521,7 +528,7 @@ def main():
         pr_url = os.environ.get("INPUT_PR_URL")
 
         if option == 1:
-            g = get_github_client()
+            g = get_github_qms_client()
             repo = g.get_repo(target_repo)
 
             cr_result = create_change_control_record(
@@ -554,7 +561,7 @@ def main():
                 print("::set-output name=result::No Change Control Record created.")
         elif option == 2:
 
-            g = get_github_client()
+            g = get_github_qms_client()
             repo = g.get_repo(target_repo)
             cc_pr_url_match = re.search(
                 r"<change_control_pr>(.*?)</change_control_pr>", issue_body
@@ -594,9 +601,7 @@ def main():
                 design_matrix_content, issue_body
             )
 
-            update_issue_section(
-                repo, issue_url, "qms-section:dtm", design_matrix_updates
-            )
+            update_issue_section(issue_url, "qms-section:dtm", design_matrix_updates)
 
             # fmea_content = get_fmea_content()
             # if fmea_content:
@@ -627,7 +632,7 @@ def main():
                     branch_name = qms_pr_url.split("/")[-2]
 
                     # Update the existing PR
-                    g = get_github_client()
+                    g = get_github_qms_client()
                     repo = g.get_repo(target_repo)
                     pr = repo.get_pull(int(qms_pr_url.split("/")[-1]))
 
