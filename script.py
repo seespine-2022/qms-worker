@@ -23,7 +23,7 @@ def get_github_qms_client():
 
 
 def get_github_current_client():
-    return Github(os.environ("GITHUB_TOKEN"))
+    return Github(os.getenv("GITHUB_TOKEN"))
 
 
 # Utility functions
@@ -617,6 +617,7 @@ def main():
             design_matrix_updates = propose_design_matrix_updates(
                 design_matrix_content, issue_body
             )
+            print("Design matrix updates: ", design_matrix_updates)
 
             update_issue_section(issue_url, "qms-section:dtm", design_matrix_updates)
 
