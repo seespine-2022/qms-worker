@@ -430,10 +430,12 @@ def get_fmea_content():
     g = get_github_qms_client()
     qms_repo = g.get_repo("seespine-2022/qms-docs")
     file_path = "risk/fmea/fmea.json"
+    print("Repo: ", qms_repo)
 
     try:
         file_content = qms_repo.get_contents(file_path, ref="main")
         decoded_content = base64.b64decode(file_content.content).decode("utf-8")
+        print("FMEA content: ", decoded_content)
         return decoded_content
     except Exception as e:
         print(f"Error: Unable to get contents of {file_path}. Exception: {e}")
@@ -637,6 +639,7 @@ def main():
             print("Design matrix updates added to the issue")
 
             fmea_content = get_fmea_content()
+            print("FMEA content: ", fmea_content)
             fmea_updates = propose_fmea_updates(fmea_content, issue_body)
             print("FMEA updates: ", fmea_updates)
 
